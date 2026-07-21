@@ -52,7 +52,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": str(db_user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- ROUTE DASHBOARD (AVEC PING RÉEL EN DIRECT) ---
+# --- ROUTE DASHBOARD (AVEC PING RÉEL) ---
 @app.get("/api/v1/dashboard")
 def get_dashboard(db: Session = Depends(get_db)):
     monitors = db.query(Monitor).all()
@@ -61,22 +61,17 @@ def get_dashboard(db: Session = Depends(get_db)):
     latencies = []
     current_time = datetime.now().strftime("%H:%M:%S")
 
-    # On teste réellement chaque URL enregistrée dans la base de données
     for mon in monitors:
         start_time = time.time()
         try:
-            # Requête HTTP réelle vers la cible avec un timeout de 3 secondes
             response = requests.get(mon.target_url, timeout=3)
-            duration = int((time.time() - start_time) * 1000) # Conversion en millisecondes
+            duration = int((time.time() - start_time) * 1000)
             latencies.append(duration)
         except Exception:
-            # Si le site est injoignable ou timeout
             latencies.append(999)
 
-    # Calcul de la latence moyenne réelle
     avg_response = int(sum(latencies) / len(latencies)) if latencies else 0
 
-    # Construction dynamique des points du graphique
     chart_data = [
         {"time": current_time, "ms": avg_response if latencies else 0}
     ]
@@ -87,15 +82,19 @@ def get_dashboard(db: Session = Depends(get_db)):
         "chart_data": chart_data
     }
 
-# --- ROUTE AJOUT DE MONITEUR ---
+# --- ROUTE AJOUT DE MONITEUR (SÉCURISÉE CONTRE LES CRASHES 500) ---
 @app.post("/api/v1/monitors")
 def add_monitor(monitor: MonitorCreate, db: Session = Depends(get_db)):
-    new_mon = Monitor(
-        name=monitor.name,
-        target_url=monitor.target_url,
-        check_interval_seconds=monitor.check_interval_seconds
-    )
-    db.add(new_mon)
-    db.commit()
-    db.refresh(new_mon)
-    return {"message": "Moniteur ajouté", "id": str(new_mon.id)}
+    try:
+        new_mon = Monitor(
+            name=monitor.name,
+            target_url=monitor.target_url,
+            check_interval_seconds=monitor.check_interval_seconds
+        )
+        db.add(new_mon)
+        db.commit()
+        db.refresh(new_mon)
+        return {"message": "Moniteur ajouté avec succès", "id": str(new_mon.id)}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
