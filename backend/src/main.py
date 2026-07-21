@@ -10,12 +10,12 @@ from .models import User, Monitor
 from .schemas import UserCreate, UserLogin, MonitorCreate, Token
 from .security import hash_password, verify_password, create_access_token
 
-# Création des tables de la BDD au démarrage
+# Création automatique des tables si elles n'existent pas
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sentinel Ops API")
 
-# --- CONFIGURATION CORS ---
+# --- CORS (Autorise Vercel à communiquer avec Render) ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,7 +28,7 @@ app.add_middleware(
 def read_root():
     return {"status": "Sentinel Ops API is live"}
 
-# --- ROUTE INSCRIPTION ---
+# --- INSCRIPTION ---
 @app.post("/api/v1/users")
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user.email).first()
@@ -42,7 +42,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return {"message": "Utilisateur créé avec succès", "id": str(new_user.id)}
 
-# --- ROUTE CONNEXION ---
+# --- CONNEXION ---
 @app.post("/api/v1/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
@@ -52,7 +52,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": str(db_user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- ROUTE DASHBOARD (AVEC PING RÉEL) ---
+# --- DASHBOARD (Pings réels des URL enregistrées) ---
 @app.get("/api/v1/dashboard")
 def get_dashboard(db: Session = Depends(get_db)):
     monitors = db.query(Monitor).all()
@@ -68,7 +68,7 @@ def get_dashboard(db: Session = Depends(get_db)):
             duration = int((time.time() - start_time) * 1000)
             latencies.append(duration)
         except Exception:
-            latencies.append(999)
+            latencies.append(999) # Valeur si le site est injoignable
 
     avg_response = int(sum(latencies) / len(latencies)) if latencies else 0
 
@@ -82,7 +82,7 @@ def get_dashboard(db: Session = Depends(get_db)):
         "chart_data": chart_data
     }
 
-# --- ROUTE AJOUT DE MONITEUR (SÉCURISÉE CONTRE LES CRASHES 500) ---
+# --- AJOUT D'UNE CIBLE DE MONITORING ---
 @app.post("/api/v1/monitors")
 def add_monitor(monitor: MonitorCreate, db: Session = Depends(get_db)):
     try:
