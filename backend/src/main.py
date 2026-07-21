@@ -1,7 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime
+import time
+import requests
 
 from .database import engine, Base, get_db
 from .models import User, Monitor
@@ -13,7 +15,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sentinel Ops API")
 
-# --- CONFIGURATION CORS (Pour autoriser Vercel) ---
+# --- CONFIGURATION CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -40,7 +42,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return {"message": "Utilisateur créé avec succès", "id": str(new_user.id)}
 
-# --- ROUTE CONNEXION (Génération du Token JWT) ---
+# --- ROUTE CONNEXION ---
 @app.post("/api/v1/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
@@ -50,23 +52,38 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": str(db_user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- ROUTE DASHBOARD ---
+# --- ROUTE DASHBOARD (AVEC PING RÉEL EN DIRECT) ---
 @app.get("/api/v1/dashboard")
 def get_dashboard(db: Session = Depends(get_db)):
     monitors = db.query(Monitor).all()
     active_count = len(monitors)
     
-    # Données simulées pour le graphique de latence
+    latencies = []
+    current_time = datetime.now().strftime("%H:%M:%S")
+
+    # On teste réellement chaque URL enregistrée dans la base de données
+    for mon in monitors:
+        start_time = time.time()
+        try:
+            # Requête HTTP réelle vers la cible avec un timeout de 3 secondes
+            response = requests.get(mon.target_url, timeout=3)
+            duration = int((time.time() - start_time) * 1000) # Conversion en millisecondes
+            latencies.append(duration)
+        except Exception:
+            # Si le site est injoignable ou timeout
+            latencies.append(999)
+
+    # Calcul de la latence moyenne réelle
+    avg_response = int(sum(latencies) / len(latencies)) if latencies else 0
+
+    # Construction dynamique des points du graphique
     chart_data = [
-        {"time": "10:00", "ms": 45},
-        {"time": "10:05", "ms": 52},
-        {"time": "10:10", "ms": 38},
-        {"time": "10:15", "ms": 41},
+        {"time": current_time, "ms": avg_response if latencies else 0}
     ]
     
     return {
         "active_monitors": active_count,
-        "avg_response": 44,
+        "avg_response": avg_response,
         "chart_data": chart_data
     }
 
