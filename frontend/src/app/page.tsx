@@ -1,157 +1,99 @@
-"use client";
+import Link from "next/link";
+import { Activity, Shield, Zap, ChevronRight, Check } from "lucide-react";
 
-import { useEffect, useState } from "react";
-import { Activity, Server, ShieldCheck, Zap, RefreshCw, Plus } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-
-export default function Dashboard() {
-  const [data, setData] = useState({ active_monitors: 0, avg_response: 0, chart_data: [] });
-  const [loading, setLoading] = useState(true);
-  
-  // États pour le formulaire
-  const [newServerName, setNewServerName] = useState("");
-  const [newServerUrl, setNewServerUrl] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // TON TOKEN JWT ICI
-  const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjY2Y5MzQ0ZS02NWEwLTRlY2ItYjVjMi1jZGYyNWY4NmRjMzkiLCJleHAiOjE3ODQ2NTkzMTR9.uiF3dvHs-XGlsYyaB3aMq8rJZaBStTq_JdmfTgTxhwM";
-
-  const fetchDashboardData = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/dashboard", {
-        headers: { "Authorization": `Bearer ${TOKEN}` }
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      }
-    } catch (error) {
-      console.error("Erreur API:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fonction pour envoyer un nouveau serveur à l'API via le bouton
-  const handleAddServer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/monitors", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${TOKEN}` 
-        },
-        body: JSON.stringify({
-          name: newServerName,
-          target_url: newServerUrl,
-          check_interval_seconds: 60
-        })
-      });
-      
-      if (res.ok) {
-        setNewServerName("");
-        setNewServerUrl("");
-        fetchDashboardData(); // On rafraîchit les graphiques immédiatement
-      }
-    } catch (error) {
-      console.error("Erreur d'ajout:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
+export default function LandingPage() {
   return (
     
+      {/* Navigation Ultra Minimaliste */}
       
+        Sentinel Ops
         
+          Connexion
           
-            Sentinel Ops
-          
-          Surveillance globale des infrastructures
-        
-        
-          {loading ? (
-            
-          ) : (
-            
-          )}
-          Temps réel
-        
-      
-
-      {/* LE FORMULAIRE INTERACTIF */}
-      
-        
-           Ajouter une cible
-        
-        
-           setNewServerName(e.target.value)}
-            required
-            className="flex-1 bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
-          />
-           setNewServerUrl(e.target.value)}
-            required
-            className="flex-1 bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
-          />
-          
-            {isSubmitting ? "Ajout..." : "Surveiller"}
+            Accéder au Dashboard
           
         
       
 
+      {/* Hero Section */}
       
         
           
-            Serveurs Surveillés
-            
-          
-          {data.active_monitors}
+          Infrastructure v2.0 est en ligne
         
         
+          Surveillez tout.Sans effort.
         
-          
-            Latence Moyenne
-            
-          
-          {data.avg_response}ms
         
-
-        
-          
-            Chiffrement
-            
-          
-          JWT Sécurisé
+          La plateforme de monitoring asynchrone conçue pour les architectures Cloud modernes. Détectez les pannes avant vos clients.
         
       
 
+      {/* Services Section */}
       
         
           
-          Activité Réseau (Derniers Pings)
-        
-        
+            
+            Ping Asynchrone
+            Vérification de la latence à la milliseconde près, sans bloquer le thread principal grâce à notre Worker isolé.
+          
           
             
-              
-                
-                  
-                  
-                
-              
-              
-               `${val}ms`} />
-              
-              
+            Temps Réel
+            Remontée des données en direct via l'API FastAPI et affichage instantané sur des graphiques React.
+          
+          
             
+            Sécurité Militaire
+            Authentification par jetons cryptographiques (JWT) et hachage asymétrique Bcrypt des données sensibles.
+          
+        
+      
+
+      {/* Pricing Section */}
+      
+        Un plan pour chaque infrastructure.
+        
+          {/* Free Tier */}
+          
+            Hobby
+            Pour les projets personnels.
+            0€ /mois
+            
+               3 Moniteurs
+               Ping toutes les 5 mins
+               Historique 24h
+            
+            Commencer
+          
+
+          {/* Pro Tier */}
+          
+            POPULAIRE
+            Pro
+            Pour les startups et freelances.
+            19€ /mois
+            
+               50 Moniteurs
+               Ping chaque minute
+               Historique 30 jours
+               Alertes Webhook
+            
+            Essai gratuit 14 jours
+          
+
+          {/* Enterprise Tier */}
+          
+            Enterprise
+            Pour les architectures critiques.
+            Sur mesure
+            
+               Moniteurs illimités
+               Ping par seconde
+               Historique illimité
+               Support dédié 24/7
+            
+            Contacter les ventes
           
         
       
