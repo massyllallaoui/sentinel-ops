@@ -1,0 +1,40 @@
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: sentinel_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      # On sauvegarde les données sur le Mac pour ne pas les perdre au redémarrage
+      - sentinel_pg_data:/var/lib/postgresql/data
+      # On injecte notre schéma SQL pour qu'il s'exécute au premier démarrage
+      - ./infra/database/init:/docker-entrypoint-initdb.d
+  api:
+    build: ./backend
+    container_name: sentinel_api
+    restart: unless-stopped
+    environment:
+      # C'est la chaine de connexion standard : postgresql://user:password@host:port/db_name
+      - DATABASE_URL=postgresql://sentinel_admin:sentinel_secure_pass_2026@database:5432/sentinel_db
+    ports:
+      - "8000:8000"
+    depends_on:
+      - database
+    # Le volume permet de modifier le code sur le Mac et que ça se mette à jour en temps réel dans le conteneur
+    volumes:
+      - ./backend/src:/app/src
+  worker:
+    build: ./worker
+    container_name: sentinel_worker
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://sentinel_admin:sentinel_secure_pass_2026@database:5432/sentinel_db
+    depends_on:
+      - database      
+volumes:
+  sentinel_pg_data:
