@@ -12,11 +12,12 @@ export default function Dashboard() {
   const [newServerUrl, setNewServerUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjY2Y5MzQ0ZS02NWEwLTRlY2ItYjVjMi1jZGYyNWY4NmRjMzkiLCJleHAiOjE3ODQ2NTkzMTR9.uiF3dvHs-XGlsYyaB3aMq8rJZaBStTq_JdmfTgTxhwM";
+  const API_URL = "https://sentinel-api-c66m.onrender.com";
+  const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4NjhiOTFiNy1lYTNiLTRlMmMtODgyYi0xOGU4OTlhMTE3YTIiLCJleHAiOjE3ODQ2Nzg2MzJ9.xuaFCKWievVvZFoHNW-Jj_QHPjQ55BE16Sx1xfT1m90";
 
   const fetchDashboardData = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/v1/dashboard", {
+      const res = await fetch(`${API_URL}/api/v1/dashboard`, {
         headers: { "Authorization": `Bearer ${TOKEN}` }
       });
       if (res.ok) {
@@ -34,7 +35,7 @@ export default function Dashboard() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const res = await fetch("http://localhost:8000/api/v1/monitors", {
+      const res = await fetch(`${API_URL}/api/v1/monitors`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -91,7 +92,7 @@ export default function Dashboard() {
         <form onSubmit={handleAddServer} className="flex flex-col md:flex-row gap-4">
           <input 
             type="text" 
-            placeholder="Nom (ex: API Prod)" 
+            placeholder="Nom (ex: Mon API)" 
             value={newServerName}
             onChange={(e) => setNewServerName(e.target.value)}
             required
