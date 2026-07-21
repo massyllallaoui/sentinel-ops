@@ -1,11 +1,23 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 import jwt
 
 from . import models, database, schemas, security
 
 app = FastAPI(title="Sentinel-Ops API", version="1.0.0")
+
+# --- L'OUVERTURE DE LA PORTE (CORS) ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Autorise Next.js à communiquer
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
@@ -65,3 +77,31 @@ def create_monitor(
     db.commit()
     db.refresh(new_monitor)
     return new_monitor
+
+# --- LA NOUVELLE ROUTE POUR LE DASHBOARD (Données en temps réel) ---
+@app.get("/api/v1/dashboard")
+def get_dashboard(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    # 1. On cherche les moniteurs du client
+    monitors = db.execute(text("SELECT id FROM monitors WHERE user_id = :uid AND is_active = TRUE"), {"uid": current_user.id}).fetchall()
+    monitor_ids = [str(m[0]) for m in monitors]
+    
+    if not monitor_ids:
+        return {"active_monitors": 0, "avg_response": 0, "chart_data": []}
+        
+    # 2. On récupère les 15 derniers pings via une requête SQL optimisée
+    logs = db.execute(text("""
+        SELECT TO_CHAR(checked_at, 'HH24:MI:SS') as time, response_time_ms 
+        FROM ping_logs 
+        WHERE monitor_id = :mid 
+        ORDER BY checked_at DESC LIMIT 15
+    """), {"mid": monitor_ids[0]}).fetchall()
+    
+    # 3. Formatage pour Recharts et inversion chrono
+    chart_data = [{"time": row[0], "ms": row[1]} for row in reversed(logs)]
+    avg = sum(d["ms"] for d in chart_data) // len(chart_data) if chart_data else 0
+    
+    return {
+        "active_monitors": len(monitor_ids),
+        "avg_response": avg,
+        "chart_data": chart_data
+    }
