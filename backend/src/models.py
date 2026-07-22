@@ -15,6 +15,7 @@ class Monitor(Base):
     __tablename__ = "monitors"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), nullable=True)
     name = Column(String, nullable=False)
     target_url = Column(String, nullable=False)
     check_interval_seconds = Column(Integer, default=60)

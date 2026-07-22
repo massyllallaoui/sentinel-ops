@@ -86,10 +86,15 @@ def get_dashboard(db: Session = Depends(get_db)):
 @app.post("/api/v1/monitors")
 def add_monitor(monitor: MonitorCreate, db: Session = Depends(get_db)):
     try:
+        # Récupération automatique du premier utilisateur pour satisfaire la contrainte BDD
+        default_user = db.query(User).first()
+        user_id = default_user.id if default_user else None
+
         new_mon = Monitor(
             name=monitor.name,
             target_url=monitor.target_url,
-            check_interval_seconds=monitor.check_interval_seconds
+            check_interval_seconds=monitor.check_interval_seconds,
+            user_id=user_id
         )
         db.add(new_mon)
         db.commit()
