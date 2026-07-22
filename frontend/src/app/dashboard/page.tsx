@@ -63,10 +63,12 @@ export default function Dashboard() {
         setUrl("");
         fetchDashboard();
       } else {
-        alert("Erreur lors de l'ajout de la cible");
+        const errData = await res.json();
+        alert("Erreur API : " + (errData.detail || JSON.stringify(errData)));
       }
     } catch (err) {
       console.error(err);
+      alert("Erreur réseau de connexion");
     } finally {
       setLoading(false);
     }

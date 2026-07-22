@@ -46,7 +46,6 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": str(db_user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- DASHBOARD AVEC LISTE DÉTAILLÉE DES SERVEURS ---
 @app.get("/api/v1/dashboard")
 def get_dashboard(db: Session = Depends(get_db)):
     monitors = db.query(Monitor).all()
