@@ -1,7 +1,6 @@
-from sqlalchemy import Column, String, Integer, DateTime
+from sqlalchemy import Column, String, Integer
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from datetime import datetime
 from .database import Base
 
 class User(Base):
@@ -19,4 +18,3 @@ class Monitor(Base):
     name = Column(String, nullable=False)
     target_url = Column(String, nullable=False)
     check_interval_seconds = Column(Integer, default=60)
-    created_at = Column(DateTime, default=datetime.utcnow)
