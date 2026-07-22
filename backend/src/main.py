@@ -10,12 +10,10 @@ from .models import User, Monitor
 from .schemas import UserCreate, UserLogin, MonitorCreate, Token
 from .security import hash_password, verify_password, create_access_token
 
-# Création automatique des tables si elles n'existent pas
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sentinel Ops API")
 
-# --- CORS (Autorise Vercel à communiquer avec Render) ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,61 +26,64 @@ app.add_middleware(
 def read_root():
     return {"status": "Sentinel Ops API is live"}
 
-# --- INSCRIPTION ---
 @app.post("/api/v1/users")
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email déjà utilisé")
-    
     hashed_pwd = hash_password(user.password)
     new_user = User(email=user.email, password_hash=hashed_pwd, tier="free")
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    return {"message": "Utilisateur créé avec succès", "id": str(new_user.id)}
+    return {"message": "Utilisateur créé", "id": str(new_user.id)}
 
-# --- CONNEXION ---
 @app.post("/api/v1/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if not db_user or not verify_password(user.password, db_user.password_hash):
         raise HTTPException(status_code=401, detail="Identifiants invalides")
-    
     access_token = create_access_token(data={"sub": str(db_user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- DASHBOARD (Pings réels des URL enregistrées) ---
+# --- DASHBOARD AVEC LISTE DÉTAILLÉE DES SERVEURS ---
 @app.get("/api/v1/dashboard")
 def get_dashboard(db: Session = Depends(get_db)):
     monitors = db.query(Monitor).all()
-    active_count = len(monitors)
-    
+    monitor_list = []
     latencies = []
-    current_time = datetime.now().strftime("%H:%M:%S")
 
     for mon in monitors:
         start_time = time.time()
+        mon_status = "online"
         try:
             response = requests.get(mon.target_url, timeout=3)
             duration = int((time.time() - start_time) * 1000)
+            if response.status_code >= 400:
+                mon_status = "degraded"
             latencies.append(duration)
         except Exception:
-            latencies.append(999) # Valeur si le site est injoignable
+            duration = 999
+            mon_status = "offline"
+            latencies.append(999)
+
+        monitor_list.append({
+            "id": str(mon.id),
+            "name": mon.name,
+            "target_url": mon.target_url,
+            "latency": duration,
+            "status": mon_status
+        })
 
     avg_response = int(sum(latencies) / len(latencies)) if latencies else 0
 
-    chart_data = [
-        {"time": current_time, "ms": avg_response if latencies else 0}
-    ]
-    
     return {
-        "active_monitors": active_count,
+        "active_monitors": len(monitors),
         "avg_response": avg_response,
-        "chart_data": chart_data
+        "monitors": monitor_list,
+        "chart_data": [{"time": datetime.now().strftime("%H:%M:%S"), "ms": avg_response}]
     }
 
-# --- AJOUT D'UNE CIBLE DE MONITORING ---
 @app.post("/api/v1/monitors")
 def add_monitor(monitor: MonitorCreate, db: Session = Depends(get_db)):
     try:
